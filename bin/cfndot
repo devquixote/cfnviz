@@ -1,0 +1,40 @@
+#!/usr/bin/env python
+from __future__ import print_function
+import argparse
+import sys
+import cfnviz
+
+
+def main():
+    parser = argparse.ArgumentParser("cfnviz")
+
+    parser.description = "a tool for generating GraphViz diagrams (in dot " + \
+                         "file syntax) from AWS CloudFormation templates."
+
+    parser.add_argument("-i", "--input FILE", dest="input_file",
+                        type=argparse.FileType('r'), help="The input template")
+    parser.add_argument("-o", "--output FILE", dest="output_file",
+                        type=argparse.FileType('w'),
+                        help="The output dot file")
+
+    args = parser.parse_args()
+
+    if args.input_file:
+        raw_input = args.input_file.read()
+        args.input_file.close()
+    else:
+        raw_input = sys.stdin.read()
+
+    if args.output_file:
+        stream_out = args.output_file
+    else:
+        stream_out = sys.stdout
+
+    document = cfnviz.parse_document(raw_input)
+    model = cfnviz.build_model(document)
+    dot_output = cfnviz.to_dot(model)
+
+    print(dot_output, file=stream_out)
+
+if __name__ == '__main__':
+    main()

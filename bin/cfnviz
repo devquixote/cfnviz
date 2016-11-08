@@ -1,0 +1,69 @@
+#!/usr/bin/env python
+from __future__ import print_function
+import argparse
+import os
+import subprocess
+import sys
+import tempfile
+import cfnviz
+
+
+def tmp_png_file():
+    tmp_dir = tempfile._get_default_tempdir()
+    tmp_file = "{}.png".format(next(tempfile._get_candidate_names()))
+
+    return os.path.join(tmp_dir, tmp_file)
+
+
+def convert_to_png(dot_file, output_file):
+    if not output_file:
+        output_file = tmp_png_file()
+    context = {"dot_file": dot_file.name, "png_file": output_file}
+    command = "cat {dot_file} | dot -T png -o {png_file}".format(**context)
+
+    subprocess.call(command, shell=True)
+
+    return output_file
+
+
+def render_and_open(dot_output, output_file):
+    dot_file = tempfile.NamedTemporaryFile(delete=False)
+    dot_file.write(dot_output)
+    dot_file.close()
+
+    png_file = convert_to_png(dot_file, output_file)
+
+    # TODO make this work with xdg-open in linux
+    subprocess.call("open {}".format(png_file), shell=True)
+
+
+def main():
+    parser = argparse.ArgumentParser("cfnviz")
+
+    parser.description = "a tool for visualizing cloudformation templates " + \
+                         "using graphviz.  This will generate a PNG temp " + \
+                         "(by default) file as output and open/xdg-open " + \
+                         "it.  This is useful for visualizing the current " + \
+                         "structure of the template at any given time."
+
+    parser.add_argument("-i", "--input FILE", dest="input_file",
+                        type=argparse.FileType('r'), help="The input template")
+    parser.add_argument("-o", "--output FILE", dest="output_file",
+                        help="The output dot file")
+
+    args = parser.parse_args()
+
+    if args.input_file:
+        raw_input = args.input_file.read()
+        args.input_file.close()
+    else:
+        raw_input = sys.stdin.read()
+
+    document = cfnviz.parse_document(raw_input)
+    model = cfnviz.build_model(document)
+    dot_output = cfnviz.to_dot(model)
+    render_and_open(dot_output, args.output_file)
+
+
+if __name__ == '__main__':
+    main()
